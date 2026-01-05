@@ -2,3 +2,4 @@ config.aws.tfbackend
 .terraform.lock.hcl
 .terraform
 .vscode
+outputs.json

@@ -5,3 +5,7 @@ infra-apply:
 	terraform fmt
 	terraform validate
 	terraform apply
+	terraform output -json > outputs.json
+
+test:
+	./test.sh

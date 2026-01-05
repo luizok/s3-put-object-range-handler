@@ -11,11 +11,13 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Arguments = {
           Bucket = "{% $states.input.bucket %}",
           Key    = "{% $states.input.key %}",
-          Range  = "bytes=0-15"
+          Range  = "bytes=0-12"
         },
         Output = {
-          refData  = "{% $substring($states.result.Body, 0, 8) %}",
-          dataType = "{% $substring($states.result.Body, 8, 16) %}"
+          refDate      = "{% $substring($states.result.Body, 0, 8) %}",
+          dataType     = "{% $substring($states.result.Body, 8, 1) %}",
+          totalRecords = "{% $substring($states.result.Body, 9, 3) %}"
+
         },
         Resource = "arn:aws:states:::aws-sdk:s3:getObject",
         End      = true
