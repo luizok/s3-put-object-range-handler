@@ -1,4 +1,4 @@
 variable "project-name" {
-  type = string
+  type    = string
   default = "s3-events-range"
 }
