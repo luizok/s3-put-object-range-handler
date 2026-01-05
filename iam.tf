@@ -40,3 +40,38 @@ resource "aws_iam_role_policy" "on_file_created_handler" {
     ]
   })
 }
+
+resource "aws_iam_role" "on_file_created_target" {
+  name = "${var.project-name}-sfn-on-file-created-target-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "events.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "on_file_created_target" {
+  name = "${var.project-name}-sfn-on-file-created-target-policy"
+  role = aws_iam_role.on_file_created_target.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid      = "VisualEditor0",
+        Effect   = "Allow",
+        Action   = "states:StartExecution",
+        Resource = aws_sfn_state_machine.on_file_created_handler.arn
+      }
+    ]
+  })
+}
