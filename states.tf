@@ -19,17 +19,38 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
           totalRecords = "{% $substring($states.result.Body, 9, 3) %}",
         },
         Resource = "arn:aws:states:::aws-sdk:s3:getObject",
-        Next     = "DoSomething"
+        Next     = "FormatArguments"
       },
-      DoSomething = {
+      FormatArguments = {
         Type = "Pass",
         Output = {
           refDate      = "{% $toMillis($states.input.refDate, '[Y0001][M01][D01]') ~> $fromMillis('[Y]-[M]-[D]') %}"
           dataType     = "{% $states.input.dataType %}",
           totalRecords = "{% $number($states.input.totalRecords) %}",
         }
-        End = true
-      }
+        Next = "ProcessData"
+      },
+      ProcessData = {
+        Type = "Choice",
+        Choices = [
+          { Condition = "{% $states.input.dataType = 'A' %}", Next = "ProcessTypeA" },
+          { Condition = "{% $states.input.dataType = 'B' %}", Next = "ProcessTypeB" },
+        ]
+        Default = "UnrecognizedDocumentType"
+      },
+      ProcessTypeA = {
+        Type = "Pass",
+        End  = true,
+      },
+      ProcessTypeB = {
+        Type = "Pass",
+        End  = true,
+      },
+      UnrecognizedDocumentType = {
+        Type  = "Fail",
+        Error = "UnrecognizedDocumentType",
+        Cause = "Document Type is not supported"
+      },
     },
     QueryLanguage = "JSONata"
   })
