@@ -16,11 +16,19 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Output = {
           refDate      = "{% $substring($states.result.Body, 0, 8) %}",
           dataType     = "{% $substring($states.result.Body, 8, 1) %}",
-          totalRecords = "{% $substring($states.result.Body, 9, 3) %}"
-
+          totalRecords = "{% $substring($states.result.Body, 9, 3) %}",
         },
         Resource = "arn:aws:states:::aws-sdk:s3:getObject",
-        End      = true
+        Next     = "DoSomething"
+      },
+      DoSomething = {
+        Type = "Pass",
+        Output = {
+          refDate      = "{% $toMillis($states.input.refDate, '[Y0001][M01][D01]') ~> $fromMillis('[Y]-[M]-[D]') %}"
+          dataType     = "{% $states.input.dataType %}",
+          totalRecords = "{% $number($states.input.totalRecords) %}",
+        }
+        End = true
       }
     },
     QueryLanguage = "JSONata"
