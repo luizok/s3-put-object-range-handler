@@ -61,12 +61,64 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Default = "UnrecognizedDocumentType"
       },
       ProcessTypeA = {
-        Type = "Pass",
-        End  = true,
+        Type  = "Map",
+        Items = "{% $states.input.records %}"
+        ItemSelector = {
+          refDate = "{% $states.input.refDate %}",
+          record  = "{% $states.context.Map.Item.Value.recordRow %}",
+        },
+        ItemProcessor = {
+          ProcessorConfig = {
+            Mode = "INLINE"
+          },
+          StartAt = "ProcessA",
+          States = {
+            ProcessA = {
+              Type = "Pass"
+              Output = {
+                userId  = "{% $substring($states.input.record, 0, 12) %}",
+                value   = "{% $number($substring($states.input.record, 12, 7)) / 100 %}"
+                refDate = "{% $states.input.refDate %}",
+              }
+              End = true
+            }
+          }
+        },
+        Output = {
+          processedRecords = "{% $states.result %}"
+        },
+        End = true,
       },
       ProcessTypeB = {
-        Type = "Pass",
-        End  = true,
+        Type  = "Map",
+        Items = "{% $states.input.records %}"
+        ItemSelector = {
+          refDate = "{% $states.input.refDate %}",
+          record  = "{% $states.context.Map.Item.Value.recordRow %}",
+        },
+        ItemProcessor = {
+          ProcessorConfig = {
+            Mode = "INLINE"
+          },
+          StartAt = "ProcessB",
+          States = {
+            ProcessB = {
+              Type = "Pass"
+              Output = {
+                sourceId   = "{% $substring($states.input.record, 0, 12) %}",
+                targetId   = "{% $substring($states.input.record, 12, 12) %}",
+                value      = "{% $number($substring($states.input.record, 24, 7)) / 100 %}"
+                isSchedule = "{% $substring($states.input.record, 31, 1) = 'T' %}"
+                refDate    = "{% $states.input.refDate %}",
+              }
+              End = true
+            }
+          }
+        }
+        Output = {
+          processedRecords = "{% $states.result %}"
+        },
+        End = true,
       },
       UnrecognizedDocumentType = {
         Type  = "Fail",
