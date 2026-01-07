@@ -64,8 +64,8 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Type  = "Map",
         Items = "{% $states.input.records %}"
         ItemSelector = {
-          refDate = "{% $states.input.refDate %}",
-          record  = "{% $states.context.Map.Item.Value.recordRow %}",
+          index  = "{% $states.context.Map.Item.Index %}",
+          record = "{% $states.context.Map.Item.Value.recordRow %}",
         },
         ItemProcessor = {
           ProcessorConfig = {
@@ -76,25 +76,26 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
             ProcessA = {
               Type = "Pass"
               Output = {
-                userId  = "{% $substring($states.input.record, 0, 12) %}",
-                value   = "{% $number($substring($states.input.record, 12, 7)) / 100 %}"
-                refDate = "{% $states.input.refDate %}",
+                userId = "{% $substring($states.input.record, 0, 12) %}",
+                value  = "{% $number($substring($states.input.record, 12, 7)) / 100 %}",
               }
               End = true
             }
           }
         },
         Output = {
-          processedRecords = "{% $states.result %}"
+          processedRecords = "{% $states.result %}",
+          refDate          = "{% $states.input.refDate %}",
+          documentType     = "{% $states.input.documentType %}",
         },
-        End = true,
+        Next = "PutObject",
       },
       ProcessTypeB = {
         Type  = "Map",
         Items = "{% $states.input.records %}"
         ItemSelector = {
-          refDate = "{% $states.input.refDate %}",
-          record  = "{% $states.context.Map.Item.Value.recordRow %}",
+          index  = "{% $states.context.Map.Item.Index %}",
+          record = "{% $states.context.Map.Item.Value.recordRow %}",
         },
         ItemProcessor = {
           ProcessorConfig = {
@@ -107,18 +108,31 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
               Output = {
                 sourceId   = "{% $substring($states.input.record, 0, 12) %}",
                 targetId   = "{% $substring($states.input.record, 12, 12) %}",
-                value      = "{% $number($substring($states.input.record, 24, 7)) / 100 %}"
-                isSchedule = "{% $substring($states.input.record, 31, 1) = 'T' %}"
-                refDate    = "{% $states.input.refDate %}",
+                value      = "{% $number($substring($states.input.record, 24, 7)) / 100 %}",
+                isSchedule = "{% $substring($states.input.record, 31, 1) = 'T' %}",
               }
               End = true
             }
           }
         }
         Output = {
-          processedRecords = "{% $states.result %}"
+          processedRecords = "{% $states.result %}",
+          refDate          = "{% $states.input.refDate %}",
+          documentType     = "{% $states.input.documentType %}",
         },
-        End = true,
+        Next = "PutObject",
+      },
+      PutObject = {
+        Type     = "Pass",
+        Resource = "arn:aws:states:::aws-sdk:s3:putObject",
+        Arguments = {
+          # Body   = "{% $join($map($states.input.processedRecords,  $string), '\n') %}",
+          # Body   = "{\"index\": \"a\"}\n{\"index\": \"b\"}\n"
+          Body   = "{% $states.input.processedRecords %}"
+          Bucket = aws_s3_bucket.processed_data_bucket.id,
+          Key    = "{% $toMillis($states.input.refDate, '[Y]-[M]-[D]') ~> $fromMillis('ano=[Y]/mes=[M]/dia=[D]/' & $states.input.documentType & '.json') %}",
+        },
+        End = true
       },
       UnrecognizedDocumentType = {
         Type  = "Fail",
