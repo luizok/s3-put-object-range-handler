@@ -15,7 +15,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         },
         Output = {
           refDate      = "{% $substring($states.result.Body, 0, 8) %}",
-          dataType     = "{% $substring($states.result.Body, 8, 1) %}",
+          documentType = "{% $substring($states.result.Body, 8, 1) %}",
           totalRecords = "{% $substring($states.result.Body, 9, 3) %}",
           bucket       = "{% $states.input.bucket %}",
           key          = "{% $states.input.key %}",
@@ -27,7 +27,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Type = "Pass",
         Output = {
           refDate      = "{% $toMillis($states.input.refDate, '[Y0001][M01][D01]') ~> $fromMillis('[Y]-[M]-[D]') %}"
-          dataType     = "{% $states.input.dataType %}",
+          documentType = "{% $states.input.documentType %}",
           totalRecords = "{% $number($states.input.totalRecords) %}",
           bucket       = "{% $states.input.bucket %}",
           key          = "{% $states.input.key %}",
@@ -43,7 +43,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         },
         Output = {
           refDate      = "{% $states.input.refDate %}",
-          dataType     = "{% $states.input.dataType %}",
+          documentType = "{% $states.input.documentType %}",
           totalRecords = "{% $states.input.totalRecords %}",
           # Converts each line of a string spliting by '\n' into a list of objects. Ex:
           # "row1\nrow2\n" -> [{"recordRow": "row1"}, {"recordRow": "row2"}]
@@ -55,8 +55,8 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
       ProcessData = {
         Type = "Choice",
         Choices = [
-          { Condition = "{% $states.input.dataType = 'A' %}", Next = "ProcessTypeA" },
-          { Condition = "{% $states.input.dataType = 'B' %}", Next = "ProcessTypeB" },
+          { Condition = "{% $states.input.documentType = 'A' %}", Next = "ProcessTypeA" },
+          { Condition = "{% $states.input.documentType = 'B' %}", Next = "ProcessTypeB" },
         ]
         Default = "UnrecognizedDocumentType"
       },
