@@ -88,7 +88,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
           refDate          = "{% $states.input.refDate %}",
           documentType     = "{% $states.input.documentType %}",
         },
-        Next = "PutObject",
+        Next = "FormatPutObjectArgs",
       },
       ProcessTypeB = {
         Type  = "Map",
@@ -120,7 +120,18 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
           refDate          = "{% $states.input.refDate %}",
           documentType     = "{% $states.input.documentType %}",
         },
-        Next = "PutObject",
+        Next = "FormatPutObjectArgs",
+      },
+      FormatPutObjectArgs = {
+        Type = "Pass",
+        Output = {
+          pttRefDatePath   = "{% $toMillis($states.input.refDate, '[Y]-[M]-[D]') ~> $fromMillis('ano=[Y]/mes=[M]/dia=[D]/') %}",
+          pttDocumentType  = "{% 'documentType=' & $states.input.documentType & '/' %}"
+          pttCtxtPath      = "{% 'contextId=' & $split($states.context.Execution.Id, ':')[-1] & '/' %}",
+          filename         = "{% $uuid() %}",
+          processedRecords = "{% $states.input.processedRecords %}",
+        }
+        Next = "PutObject"
       },
       PutObject = {
         Type     = "Task",
@@ -130,7 +141,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
           # Body   = "{\"index\": \"a\"}\n{\"index\": \"b\"}\n"
           Body   = "{% $states.input.processedRecords %}"
           Bucket = aws_s3_bucket.processed_data_bucket.id,
-          Key    = "{% $toMillis($states.input.refDate, '[Y]-[M]-[D]') ~> $fromMillis('ano=[Y]/mes=[M]/dia=[D]/' & $states.input.documentType & '.json') %}",
+          Key    = "{% $states.input.pttRefDatePath & $states.input.pttDocumentType & $states.input.pttCtxtPath & $states.input.filename %}",
         },
         End = true
       },
