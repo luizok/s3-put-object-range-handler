@@ -93,6 +93,19 @@ resource "aws_iam_role_policy" "on_file_created_handler" {
           aws_s3_bucket.processed_data_bucket.arn,
           "${aws_s3_bucket.processed_data_bucket.arn}/*"
         ]
+      },
+      {
+        Sid    = "VisualEditor1",
+        Effect = "Allow",
+        Action = [
+          "glue:StartJobRun",
+          "glue:GetJobRun",
+          "glue:GetJobRuns",
+          "glue:GetJob"
+        ],
+        Resource = [
+          aws_glue_job.process_data.arn
+        ]
       }
     ]
   })
