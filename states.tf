@@ -123,7 +123,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Next = "PutObject",
       },
       PutObject = {
-        Type     = "Pass",
+        Type     = "Task",
         Resource = "arn:aws:states:::aws-sdk:s3:putObject",
         Arguments = {
           # Body   = "{% $join($map($states.input.processedRecords,  $string), '\n') %}",
