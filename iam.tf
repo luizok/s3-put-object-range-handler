@@ -47,7 +47,8 @@ resource "aws_iam_role_policy" "glue_process_data" {
         Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents"
+          "logs:PutLogEvents",
+          "cloudwatch:PutMetricData",
         ],
         Resource = "*"
       },

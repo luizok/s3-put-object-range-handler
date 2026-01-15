@@ -25,10 +25,10 @@ resource "aws_glue_job" "process_data" {
     "--TempDir"                          = "s3://${aws_s3_bucket.glue_scripts.id}/temp/"
     "--REF_DATE"                         = ""
     "--DOC_TYPE"                         = ""
-    "--FILE_PATH"                        = ""
+    "--INPUT_PATH"                       = ""
+    "--OUTPUT_PATH"                      = ""
     "--CONTEXT_ID"                       = ""
   }
 
-  max_retries = 1
-  timeout     = 60 # min
+  timeout = 60 # min
 }

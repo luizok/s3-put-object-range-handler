@@ -31,6 +31,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
           totalRecords = "{% $number($states.input.totalRecords) %}",
           bucket       = "{% $states.input.bucket %}",
           key          = "{% $states.input.key %}",
+          contextId    = "{% $split($states.context.Execution.Id, ':')[-1] %}"
         }
         Next = "ProcessData"
       },
@@ -40,13 +41,18 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Arguments = {
           JobName = aws_glue_job.process_data.name,
           Arguments = {
-            "--REF_DATE"   = "{% $states.input.refDate %}",
-            "--DOC_TYPE"   = "{% $states.input.documentType %}",
-            "--CONTEXT_ID" = "{% $split($states.context.Execution.Id, ':')[-1] %}",
-            "--FILE_PATH"  = "{% 's3://' & $states.input.bucket & '/' & $states.input.key %}"
+            "--REF_DATE"    = "{% $states.input.refDate %}",
+            "--DOC_TYPE"    = "{% $states.input.documentType %}",
+            "--CONTEXT_ID"  = "{% $states.input.contextId %}",
+            "--INPUT_PATH"  = "{% 's3://' & $states.input.bucket & '/' & $states.input.key %}",
+            "--OUTPUT_PATH" = "{% 's3://' & '${aws_s3_bucket.processed_data_bucket.id}' %}"
           }
         },
-        "End" : true
+        Output = {
+          contextId = "{% $states.input.contextId %}",
+          jobId     = "{% $states.result.JobRunId %}"
+        },
+        End = true
       }
     },
     QueryLanguage = "JSONata"
