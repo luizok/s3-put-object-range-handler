@@ -32,7 +32,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
           bucket       = "{% $states.input.bucket %}",
           key          = "{% $states.input.key %}",
           contextId    = "{% $split($states.context.Execution.Id, ':')[-1] %}",
-          mappedTable  = {
+          mappedTable = {
             A = aws_glue_catalog_table.document_tables["document_a"].name,
             B = aws_glue_catalog_table.document_tables["document_b"].name,
           }
@@ -55,7 +55,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         },
         Output = {
           contextId = "{% $states.input.contextId %}",
-          jobId     = "{% $states.result.JobRunId %}"
+          jobRunId  = "{% $states.result.JobRunId %}"
         },
         End = true
       }

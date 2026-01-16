@@ -52,6 +52,24 @@ resource "aws_iam_role_policy" "glue_process_data" {
         ],
         Resource = "*"
       },
+      {
+        Sid    = "GlueCatalogPartitions",
+        Effect = "Allow",
+        Action = [
+          "glue:GetDatabase",
+          "glue:GetTable",
+          "glue:GetPartitions",
+          "glue:CreatePartition",
+          "glue:UpdatePartition",
+          "glue:BatchCreatePartition"
+        ],
+        Resource = concat([
+          "arn:aws:glue:${local.region}:${local.account_id}:catalog",
+          aws_glue_catalog_database.database.arn,
+          ],
+          [for table in aws_glue_catalog_table.document_tables : table.arn]
+        )
+      },
     ]
   })
 }
