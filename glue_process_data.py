@@ -19,8 +19,9 @@ def decode(layout):
 
 def decode_document_type_A():
     layout = [
-        ("user_id", 1, 12),
-        ("value", 13, 7),
+        ('_type', 1, 1),
+        ("user_id", 2, 12),
+        ("value", 14, 7),
     ]
 
     return decode(layout)
@@ -29,10 +30,11 @@ def decode_document_type_A():
 def decode_document_type_B():
 
     layout = [
-        ('source_id', 1, 12),
-        ('target_id', 13, 12),
-        ('value', 25, 7),
-        ('is_scheduled', 32, 1)
+        ('_type', 1, 1),
+        ('source_id', 2, 12),
+        ('target_id', 14, 12),
+        ('value', 26, 7),
+        ('is_scheduled', 33, 1)
     ]
 
     return decode(layout)
@@ -78,7 +80,10 @@ if not decode_func:
 
 raw_df = spark.read.text(input_path)
 raw_df.show(truncate=False)
-df = raw_df.select(*decode_func())
+df = raw_df \
+    .filter(F.col('value').startswith('1')) \
+    .select(*decode_func()) \
+    .drop('_type')
 df = df.withColumn("ano", F.lit(ref_date[:4])) \
     .withColumn("mes", F.lit(ref_date[5:7])) \
     .withColumn("dia", F.lit(ref_date[8:])) \

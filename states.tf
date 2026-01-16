@@ -11,7 +11,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Arguments = {
           Bucket = "{% $states.input.bucket %}",
           Key    = "{% $states.input.key %}",
-          Range  = "bytes=0-12"
+          Range  = "bytes=1-13"
         },
         Output = {
           refDate      = "{% $substring($states.result.Body, 0, 8) %}",
