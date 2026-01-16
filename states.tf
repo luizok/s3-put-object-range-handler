@@ -31,7 +31,11 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
           totalRecords = "{% $number($states.input.totalRecords) %}",
           bucket       = "{% $states.input.bucket %}",
           key          = "{% $states.input.key %}",
-          contextId    = "{% $split($states.context.Execution.Id, ':')[-1] %}"
+          contextId    = "{% $split($states.context.Execution.Id, ':')[-1] %}",
+          mappedTable  = {
+            A = aws_glue_catalog_table.document_tables["document_a"].name,
+            B = aws_glue_catalog_table.document_tables["document_b"].name,
+          }
         }
         Next = "ProcessData"
       },
@@ -41,11 +45,12 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Arguments = {
           JobName = aws_glue_job.process_data.name,
           Arguments = {
-            "--REF_DATE"    = "{% $states.input.refDate %}",
-            "--DOC_TYPE"    = "{% $states.input.documentType %}",
-            "--CONTEXT_ID"  = "{% $states.input.contextId %}",
-            "--INPUT_PATH"  = "{% 's3://' & $states.input.bucket & '/' & $states.input.key %}",
-            "--OUTPUT_PATH" = "{% 's3://' & '${aws_s3_bucket.processed_data_bucket.id}' %}"
+            "--REF_DATE"     = "{% $states.input.refDate %}",
+            "--DOC_TYPE"     = "{% $states.input.documentType %}",
+            "--CONTEXT_ID"   = "{% $states.input.contextId %}",
+            "--INPUT_PATH"   = "{% 's3://' & $states.input.bucket & '/' & $states.input.key %}",
+            "--OUTPUT_DB"    = aws_glue_catalog_database.database.name,
+            "--OUTPUT_TABLE" = "{% $lookup($states.input.mappedTable, $states.input.documentType) %}"
           }
         },
         Output = {
