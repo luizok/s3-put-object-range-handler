@@ -96,7 +96,7 @@ df = raw_df \
 df = df.withColumn("ano", F.lit(ref_date[:4])) \
     .withColumn("mes", F.lit(ref_date[5:7])) \
     .withColumn("dia", F.lit(ref_date[8:])) \
-    .withColumn("contextId", F.lit(context_id))
+    .withColumn("context_id", F.lit(context_id))
 
 df.show(truncate=False)
 dyf = DynamicFrame.fromDF(df, glueContext, "dyf_saida")
