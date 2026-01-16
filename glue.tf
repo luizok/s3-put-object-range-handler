@@ -46,6 +46,7 @@ locals {
       columns = [
         { name = "user_id", type = "string" },
         { name = "value", type = "float" },
+        { name = "context_id", type = "string" },
       ]
     },
     document_b = {
@@ -55,6 +56,7 @@ locals {
         { name = "target_id", type = "string" },
         { name = "value", type = "float" },
         { name = "is_scheduled", type = "boolean" },
+        { name = "context_id", type = "string" },
       ]
     },
   }
