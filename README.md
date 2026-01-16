@@ -27,5 +27,5 @@
 |source_id       |X(12)   |str  |1-12    |
 |target_id       |X(12)   |str  |13-24   |
 |value           |9(5)V99 |int  |25-31   |
-|isScheduled     |X       |bool |32      |
+|is_scheduled    |X       |bool |32      |
 |**TOTAL**       |        |     |**33**  |
