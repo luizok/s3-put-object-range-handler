@@ -4,14 +4,23 @@ from awsglue.context import GlueContext
 from awsglue.job import Job
 from awsglue.utils import getResolvedOptions
 from awsglue.dynamicframe import DynamicFrame
-from pyspark.sql import functions as F
+from pyspark.sql import functions as F, types as T
 
 
 def decode(layout):
 
+    layout_default_fn = []
+    identity_fn = lambda c: c  # noqa:E731
+    for col_def in layout:
+        if len(col_def) == 3:
+            layout_default_fn.append((*col_def, identity_fn))
+            continue
+
+        layout_default_fn.append(col_def)
+
     cols = [
-        F.substring(F.col("value"), start, size).alias(name)
-        for name, start, size in layout
+        apply(F.substring(F.col("value"), start, size)).alias(name)
+        for name, start, size, apply in layout_default_fn
     ]
 
     return cols
@@ -21,7 +30,7 @@ def decode_document_type_A():
     layout = [
         ('_type', 1, 1),
         ("user_id", 2, 12),
-        ("value", 14, 7),
+        ("value", 14, 7, lambda c: c.cast(T.FloatType()) / 100),
     ]
 
     return decode(layout)
@@ -33,8 +42,8 @@ def decode_document_type_B():
         ('_type', 1, 1),
         ('source_id', 2, 12),
         ('target_id', 14, 12),
-        ('value', 26, 7),
-        ('is_scheduled', 33, 1)
+        ('value', 26, 7, lambda c: c.cast(T.FloatType()) / 100),
+        ('is_scheduled', 33, 1, lambda c: c == 'T')
     ]
 
     return decode(layout)
@@ -87,8 +96,7 @@ df = raw_df \
 df = df.withColumn("ano", F.lit(ref_date[:4])) \
     .withColumn("mes", F.lit(ref_date[5:7])) \
     .withColumn("dia", F.lit(ref_date[8:])) \
-    .withColumn("contextId", F.lit(context_id)) \
-    .withColumn("jobRunId", F.lit(job_run_id))
+    .withColumn("contextId", F.lit(context_id))
 
 df.show(truncate=False)
 dyf = DynamicFrame.fromDF(df, glueContext, "dyf_saida")
