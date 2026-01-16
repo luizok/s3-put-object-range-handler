@@ -11,7 +11,7 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
         Arguments = {
           Bucket = "{% $states.input.bucket %}",
           Key    = "{% $states.input.key %}",
-          Range  = "bytes=0-12"
+          Range  = "bytes=1-13"
         },
         Output = {
           refDate      = "{% $substring($states.result.Body, 0, 8) %}",
@@ -31,125 +31,34 @@ resource "aws_sfn_state_machine" "on_file_created_handler" {
           totalRecords = "{% $number($states.input.totalRecords) %}",
           bucket       = "{% $states.input.bucket %}",
           key          = "{% $states.input.key %}",
+          contextId    = "{% $split($states.context.Execution.Id, ':')[-1] %}",
+          mappedTable = {
+            A = aws_glue_catalog_table.document_tables["document_a"].name,
+            B = aws_glue_catalog_table.document_tables["document_b"].name,
+          }
         }
-        Next = "GetObjectRecords"
-      },
-      GetObjectRecords = {
-        Type = "Task",
-        Arguments = {
-          Bucket = "{% $states.input.bucket %}",
-          Key    = "{% $states.input.key %}",
-          Range  = "bytes=12-"
-        },
-        Output = {
-          refDate      = "{% $states.input.refDate %}",
-          documentType = "{% $states.input.documentType %}",
-          totalRecords = "{% $states.input.totalRecords %}",
-          # Converts each line of a string spliting by '\n' into a list of objects. Ex:
-          # "row1\nrow2\n" -> [{"recordRow": "row1"}, {"recordRow": "row2"}]
-          records = "{% $map($split($states.result.Body, '\n')[$boolean($)], function($v){ {'recordRow': $v} }) %}",
-        },
-        Resource = "arn:aws:states:::aws-sdk:s3:getObject",
-        Next     = "ProcessData",
+        Next = "ProcessData"
       },
       ProcessData = {
-        Type = "Choice",
-        Choices = [
-          { Condition = "{% $states.input.documentType = 'A' %}", Next = "ProcessTypeA" },
-          { Condition = "{% $states.input.documentType = 'B' %}", Next = "ProcessTypeB" },
-        ]
-        Default = "UnrecognizedDocumentType"
-      },
-      ProcessTypeA = {
-        Type  = "Map",
-        Items = "{% $states.input.records %}"
-        ItemSelector = {
-          index  = "{% $states.context.Map.Item.Index %}",
-          record = "{% $states.context.Map.Item.Value.recordRow %}",
-        },
-        ItemProcessor = {
-          ProcessorConfig = {
-            Mode = "INLINE"
-          },
-          StartAt = "ProcessA",
-          States = {
-            ProcessA = {
-              Type = "Pass"
-              Output = {
-                userId = "{% $substring($states.input.record, 0, 12) %}",
-                value  = "{% $number($substring($states.input.record, 12, 7)) / 100 %}",
-              }
-              End = true
-            }
-          }
-        },
-        Output = {
-          processedRecords = "{% $states.result %}",
-          refDate          = "{% $states.input.refDate %}",
-          documentType     = "{% $states.input.documentType %}",
-        },
-        Next = "FormatPutObjectArgs",
-      },
-      ProcessTypeB = {
-        Type  = "Map",
-        Items = "{% $states.input.records %}"
-        ItemSelector = {
-          index  = "{% $states.context.Map.Item.Index %}",
-          record = "{% $states.context.Map.Item.Value.recordRow %}",
-        },
-        ItemProcessor = {
-          ProcessorConfig = {
-            Mode = "INLINE"
-          },
-          StartAt = "ProcessB",
-          States = {
-            ProcessB = {
-              Type = "Pass"
-              Output = {
-                sourceId   = "{% $substring($states.input.record, 0, 12) %}",
-                targetId   = "{% $substring($states.input.record, 12, 12) %}",
-                value      = "{% $number($substring($states.input.record, 24, 7)) / 100 %}",
-                isSchedule = "{% $substring($states.input.record, 31, 1) = 'T' %}",
-              }
-              End = true
-            }
-          }
-        }
-        Output = {
-          processedRecords = "{% $states.result %}",
-          refDate          = "{% $states.input.refDate %}",
-          documentType     = "{% $states.input.documentType %}",
-        },
-        Next = "FormatPutObjectArgs",
-      },
-      FormatPutObjectArgs = {
-        Type = "Pass",
-        Output = {
-          pttRefDatePath   = "{% $toMillis($states.input.refDate, '[Y]-[M]-[D]') ~> $fromMillis('ano=[Y]/mes=[M]/dia=[D]/') %}",
-          pttDocumentType  = "{% 'documentType=' & $states.input.documentType & '/' %}"
-          pttCtxtPath      = "{% 'contextId=' & $split($states.context.Execution.Id, ':')[-1] & '/' %}",
-          filename         = "{% $uuid() %}",
-          processedRecords = "{% $states.input.processedRecords %}",
-        }
-        Next = "PutObject"
-      },
-      PutObject = {
         Type     = "Task",
-        Resource = "arn:aws:states:::aws-sdk:s3:putObject",
+        Resource = "arn:aws:states:::glue:startJobRun",
         Arguments = {
-          # Body   = "{% $join($map($states.input.processedRecords,  $string), '\n') %}",
-          # Body   = "{\"index\": \"a\"}\n{\"index\": \"b\"}\n"
-          Body   = "{% $states.input.processedRecords %}"
-          Bucket = aws_s3_bucket.processed_data_bucket.id,
-          Key    = "{% $states.input.pttRefDatePath & $states.input.pttDocumentType & $states.input.pttCtxtPath & $states.input.filename %}",
+          JobName = aws_glue_job.process_data.name,
+          Arguments = {
+            "--REF_DATE"     = "{% $states.input.refDate %}",
+            "--DOC_TYPE"     = "{% $states.input.documentType %}",
+            "--CONTEXT_ID"   = "{% $states.input.contextId %}",
+            "--INPUT_PATH"   = "{% 's3://' & $states.input.bucket & '/' & $states.input.key %}",
+            "--OUTPUT_DB"    = aws_glue_catalog_database.database.name,
+            "--OUTPUT_TABLE" = "{% $lookup($states.input.mappedTable, $states.input.documentType) %}"
+          }
+        },
+        Output = {
+          contextId = "{% $states.input.contextId %}",
+          jobRunId  = "{% $states.result.JobRunId %}"
         },
         End = true
-      },
-      UnrecognizedDocumentType = {
-        Type  = "Fail",
-        Error = "UnrecognizedDocumentType",
-        Cause = "Document Type is not supported"
-      },
+      }
     },
     QueryLanguage = "JSONata"
   })
